@@ -14,19 +14,12 @@ end
 
 system %Q{
 # Fail fast and fail hard.
-set -eo pipefail
-
-# Prepend proper path for virtualenv hackery. This will be deprecated soon.
-export PATH=:/usr/local/bin:$PATH
+set -e
 
 # Paths.
-BIN_DIR=$(cd $(dirname $0); pwd) # absolute path
-ROOT_DIR=$(dirname $BIN_DIR)
 BUILD_DIR=$1
 CACHE_DIR=$2
 
-# We'll need to send these statics to other scripts we `source`.
-# export PIP_DOWNLOAD_CACHE
 export BUILD_DIR
 
 # Syntax sugar.
@@ -57,4 +50,5 @@ UFRAW_URL="https://download-pixelapse.s3.amazonaws.com/ufraw-bin-$UFRAW_VERSION.
 puts-step "Bundling ufraw version $UFRAW_VERSION"
 curl --silent --max-time 60 --location "$UFRAW_URL" | tar xz -C $IM_LOCATION
   
+puts-step "Done bundling ImageMagick and ufraw."
 }
