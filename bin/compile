@@ -17,7 +17,7 @@ system <<-SH
 set -e
 
 # Paths.
-BUILD_DIR=#{ARGS[0]}
+BUILD_DIR=#{ARGV[0]}
 
 export BUILD_DIR
 
