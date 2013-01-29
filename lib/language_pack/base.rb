@@ -62,7 +62,13 @@ class LanguagePack::Base
 
     {
       "addons" => default_addons,
-      "default_process_types" => default_process_types
+      "default_process_types" => default_process_types,
+      "config_vars" => {
+        "PATH" => "/app/im/bin:bin:vendor/bundle/ruby/1.9.1/bin:/usr/local/bin:/usr/bin:/bin",
+        "LD_LIBRARY_PATH" => "/app/im/lib",
+        "MAGICK_HOME" => "/app/im",
+        "LANG" => "en_US.UTF-8"
+      }
     }.to_yaml
   end
 
