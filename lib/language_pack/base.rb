@@ -60,7 +60,7 @@ class LanguagePack::Base
   def release
     setup_language_pack_environment
 
-    yaml = {
+    {
       "addons" => default_addons,
       "default_process_types" => default_process_types,
       "config_vars" => {
@@ -70,8 +70,6 @@ class LanguagePack::Base
         "LANG" => "en_US.UTF-8"
       }
     }.to_yaml
-    puts yaml
-    yaml
   end
 
   # log output
