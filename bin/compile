@@ -13,42 +13,41 @@ if pack = LanguagePack.detect(ARGV[0], ARGV[1])
 end
 
 system <<-SH
-# Fail fast and fail hard.
-set -e
+  # Fail fast and fail hard.
+  set -e;
 
-# Paths.
-BUILD_DIR=#{ARGV[0]}
+  # Paths.
+  BUILD_DIR=#{ARGV[0]};
 
-export BUILD_DIR
+  export BUILD_DIR;
 
-# Syntax sugar.
+  # Syntax sugar.
 
-function puts-step (){
-  echo "-----> $@"
-}
+  function puts-step (){
+    echo "-----> $@";
+  };
 
-# ## Build Time
-#
+  # ## Build Time
+  #
 
-# Switch to the repo's context.
-cd $BUILD_DIR
+  # Switch to the repo's context.
+  cd $BUILD_DIR;
 
-IM_LOCATION="im"
+  IM_LOCATION="im";
 
-mkdir -p $IM_LOCATION
+  mkdir -p $IM_LOCATION;
 
-# Install ImageMagick
-IM_VERSION="6.7.8-8"
-IM_URL="https://download-pixelapse.s3.amazonaws.com/im-$IM_VERSION.tar.gz"
-puts-step "Bundling ImageMagick version $IM_VERSION"
-curl --silent --max-time 60 --location "$IM_URL" | tar xz
+  # Install ImageMagick
+  IM_VERSION="6.7.8-8";
+  IM_URL="https://download-pixelapse.s3.amazonaws.com/im-$IM_VERSION.tar.gz";
+  puts-step "Bundling ImageMagick version $IM_VERSION";
+  curl --silent --max-time 60 --location "$IM_URL" | tar xz;
 
-# ufraw dependency
-UFRAW_VERSION="0.18"
-UFRAW_URL="https://download-pixelapse.s3.amazonaws.com/ufraw-bin-$UFRAW_VERSION.tar.gz"
-puts-step "Bundling ufraw version $UFRAW_VERSION"
-curl --silent --max-time 60 --location "$UFRAW_URL" | tar xz -C $IM_LOCATION
-  
-puts-step "Done bundling ImageMagick and ufraw."
-}
+  # ufraw dependency
+  UFRAW_VERSION="0.18";
+  UFRAW_URL="https://download-pixelapse.s3.amazonaws.com/ufraw-bin-$UFRAW_VERSION.tar.gz";
+  puts-step "Bundling ufraw version $UFRAW_VERSION";
+  curl --silent --max-time 60 --location "$UFRAW_URL" | tar xz -C $IM_LOCATION;
+    
+  puts-step "Done bundling ImageMagick and ufraw.";
 SH
