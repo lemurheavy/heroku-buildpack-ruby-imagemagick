@@ -12,13 +12,12 @@ if pack = LanguagePack.detect(ARGV[0], ARGV[1])
   end
 end
 
-system %Q{
+system <<-SH
 # Fail fast and fail hard.
 set -e
 
 # Paths.
-BUILD_DIR=$1
-CACHE_DIR=$2
+BUILD_DIR=#{ARGS[0]}
 
 export BUILD_DIR
 
@@ -52,3 +51,4 @@ curl --silent --max-time 60 --location "$UFRAW_URL" | tar xz -C $IM_LOCATION
   
 puts-step "Done bundling ImageMagick and ufraw."
 }
+SH
