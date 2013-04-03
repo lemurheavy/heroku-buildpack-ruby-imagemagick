@@ -27,10 +27,6 @@ system <<-SH
   # Switch to the repo's context.
   cd $BUILD_DIR;
 
-  IM_LOCATION="";
-
-  mkdir -p $IM_LOCATION;
-
   # Install ImageMagick
   IM_VERSION="6.7.8-8";
   IM_URL="https://download-pixelapse.s3.amazonaws.com/im-$IM_VERSION.tar.gz";
@@ -41,7 +37,7 @@ system <<-SH
   UFRAW_VERSION="0.18";
   UFRAW_URL="https://download-pixelapse.s3.amazonaws.com/ufraw-bin-$UFRAW_VERSION.tar.gz";
   echo "Bundling ufraw version $UFRAW_VERSION";
-  curl --silent --max-time 60 --location "$UFRAW_URL" | tar xz -C $IM_LOCATION;
+  curl --silent --max-time 60 --location "$UFRAW_URL" | tar xz -C .;
 
   echo "Done bundling ImageMagick and ufraw.";
 SH
