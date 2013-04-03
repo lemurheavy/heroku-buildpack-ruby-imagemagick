@@ -2,13 +2,17 @@ require "tmpdir"
 require "rubygems"
 require "language_pack"
 require "language_pack/base"
+require "language_pack/bundler_lockfile"
 
 # base Ruby Language Pack. This is for any base ruby app.
 class LanguagePack::Ruby < LanguagePack::Base
-  BUILDPACK_VERSION   = "v47"
+  include LanguagePack::BundlerLockfile
+  extend LanguagePack::BundlerLockfile
+
+  BUILDPACK_VERSION   = "v58"
   LIBYAML_VERSION     = "0.1.4"
   LIBYAML_PATH        = "libyaml-#{LIBYAML_VERSION}"
-  BUNDLER_VERSION     = "1.3.0.pre.5"
+  BUNDLER_VERSION     = "1.3.2"
   BUNDLER_GEM_PATH    = "bundler-#{BUNDLER_VERSION}"
   NODE_VERSION        = "0.4.7"
   NODE_JS_BINARY_PATH = "node-#{NODE_VERSION}"
@@ -21,12 +25,28 @@ class LanguagePack::Ruby < LanguagePack::Base
     File.exist?("Gemfile")
   end
 
+  def self.lockfile_parser
+    require "bundler"
+    Bundler::LockfileParser.new(File.read("Gemfile.lock"))
+  end
+
+  def self.gem_version(name)
+    gem_version = nil
+    bootstrap_bundler do |bundler_path|
+      $: << "#{bundler_path}/gems/bundler-#{LanguagePack::Ruby::BUNDLER_VERSION}/lib"
+      gem         = lockfile_parser.specs.detect {|gem| gem.name == name }
+      gem_version = gem.version if gem
+    end
+
+    gem_version
+  end
+
   def name
     "Ruby"
   end
 
   def default_addons
-    add_shared_database_addon
+    add_dev_database_addon
   end
 
   def default_config_vars
@@ -127,17 +147,6 @@ private
     end
 
     @ruby_version
-  end
-
-  # bootstraps bundler so we can pull the ruby version
-  def bootstrap_bundler(&block)
-    Dir.mktmpdir("bundler-") do |tmpdir|
-      Dir.chdir(tmpdir) do
-        run("curl #{VENDOR_URL}/#{BUNDLER_GEM_PATH}.tgz -s -o - | tar xzf -")
-      end
-
-      yield tmpdir
-    end
   end
 
   # determine if we're using rbx
@@ -383,7 +392,7 @@ ERROR
         cache_load ".bundle"
       end
 
-      version = run("env RUBYOPT=\"#{syck_hack}\" bundle version").strip
+      version = run("bundle version").strip
       topic("Installing dependencies using #{version}")
 
       load_bundler_cache
@@ -397,9 +406,11 @@ ERROR
         yaml_include   = File.expand_path("#{libyaml_dir}/include")
         yaml_lib       = File.expand_path("#{libyaml_dir}/lib")
         pwd            = run("pwd").chomp
+        bundler_path   = "#{pwd}/#{slug_vendor_base}/gems/#{BUNDLER_GEM_PATH}/lib"
         # we need to set BUNDLE_CONFIG and BUNDLE_GEMFILE for
         # codon since it uses bundler.
         env_vars       = "env BUNDLE_GEMFILE=#{pwd}/Gemfile BUNDLE_CONFIG=#{pwd}/.bundle/config CPATH=#{yaml_include}:$CPATH CPPATH=#{yaml_include}:$CPPATH LIBRARY_PATH=#{yaml_lib}:$LIBRARY_PATH RUBYOPT=\"#{syck_hack}\""
+        env_vars      += " BUNDLER_LIB_PATH=#{bundler_path}" if ruby_version == "ruby-1.8.7"
         puts "Running: #{bundle_command}"
         bundler_output << pipe("#{env_vars} #{bundle_command} --no-clean 2>&1")
 
@@ -544,8 +555,7 @@ params = CGI.parse(uri.query || "")
   # @return [Bundler::LockfileParser] a Bundler::LockfileParser
   def lockfile_parser
     add_bundler_to_load_path
-    require "bundler"
-    @lockfile_parser ||= Bundler::LockfileParser.new(File.read("Gemfile.lock"))
+    @lockfile_parser ||= LanguagePack::Ruby.lockfile_parser
   end
 
   # detects if a rake task is defined in the app
@@ -563,10 +573,10 @@ params = CGI.parse(uri.query || "")
     ENV["GIT_DIR"] = git_dir
   end
 
-  # decides if we need to enable the shared database addon
+  # decides if we need to enable the dev database addon
   # @return [Array] the database addon if the pg gem is detected or an empty Array if it isn't.
-  def add_shared_database_addon
-    gem_is_bundled?("pg") ? ['shared-database:5mb'] : []
+  def add_dev_database_addon
+    gem_is_bundled?("pg") ? ['heroku-postgresql:dev'] : []
   end
 
   # decides if we need to install the node.js binary
@@ -598,7 +608,8 @@ params = CGI.parse(uri.query || "")
     full_ruby_version       = run(%q(ruby -v)).chomp
     heroku_metadata         = "vendor/heroku"
     ruby_version_cache      = "#{heroku_metadata}/ruby_version"
-    buildpack_version_cache = "vendor/heroku/buildpack_version"
+    buildpack_version_cache = "#{heroku_metadata}/buildpack_version"
+    bundler_version_cache   = "#{heroku_metadata}/bundler_version"
 
     # fix bug from v37 deploy
     if File.exists?("vendor/ruby_version")
@@ -610,10 +621,16 @@ params = CGI.parse(uri.query || "")
     elsif !File.exists?(buildpack_version_cache) && File.exists?(ruby_version_cache)
       puts "Broken cache detected. Purging build cache."
       purge_bundler_cache
-    elsif cache_exists?(bundler_cache) && !(File.exists?(ruby_version_cache) && full_ruby_version == File.read(ruby_version_cache).chomp)
+    elsif cache_exists?(bundler_cache) && File.exists?(ruby_version_cache) && full_ruby_version != File.read(ruby_version_cache).chomp
       puts "Ruby version change detected. Clearing bundler cache."
       puts "Old: #{File.read(ruby_version_cache).chomp}"
       puts "New: #{full_ruby_version}"
+      purge_bundler_cache
+    end
+
+    # fix git gemspec bug from Bundler 1.3.0+ upgrade
+    if File.exists?(bundler_cache) && !File.exists?(bundler_version_cache) && !run("find vendor/bundle/*/*/bundler/gems/*/ -name *.gemspec").include?("No such file or directory")
+      puts "Old bundler cache detected. Clearing bundler cache."
       purge_bundler_cache
     end
 
@@ -623,6 +640,9 @@ params = CGI.parse(uri.query || "")
     end
     File.open(buildpack_version_cache, 'w') do |file|
       file.puts BUILDPACK_VERSION
+    end
+    File.open(bundler_version_cache, 'w') do |file|
+      file.puts BUNDLER_VERSION
     end
     cache_store heroku_metadata
   end
